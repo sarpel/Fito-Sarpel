@@ -1,27 +1,32 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { PlantAvatar } from './components/PlantAvatar';
 import { SensorCard } from './components/SensorCard';
+import { MoodGif } from './components/MoodGif';
 import { generatePlantThought } from './services/geminiService';
-import { SensorData, PlantState, PlantMood } from './types';
-import { PLANT_THRESHOLDS, DEFAULT_SENSOR_DATA } from './constants';
-import { Settings, Thermometer, Droplets, Sun, Cpu, RefreshCw } from 'lucide-react';
+import { SensorData, PlantMood } from './types';
+import { PLANT_THRESHOLDS, DEFAULT_SENSOR_DATA, CARE_TIPS } from './constants';
+import { Settings, Thermometer, Droplets, Sun, Cpu, Sprout, Edit2, Check, X } from 'lucide-react';
 
 const App: React.FC = () => {
   // State for sensor readings
   const [sensorData, setSensorData] = useState<SensorData>(DEFAULT_SENSOR_DATA);
   
-  // State for determined mood and AI thought
+  // State for determined mood, nickname, and AI thought
   const [mood, setMood] = useState<PlantMood>('happy');
+  const [nickname, setNickname] = useState<string>("Sprout");
+  const [tempNickname, setTempNickname] = useState<string>("Sprout");
+  const [isEditingName, setIsEditingName] = useState<boolean>(false);
   const [aiThought, setAiThought] = useState<string>("I'm just photosynthesizing...");
   const [isThinking, setIsThinking] = useState<boolean>(false);
   
-  // Simulation mode toggle (since we can't connect to real GPIO in browser)
+  // UI States
   const [isSimulationMode, setIsSimulationMode] = useState<boolean>(true);
   const [showControls, setShowControls] = useState<boolean>(false);
+  const [showCareTips, setShowCareTips] = useState<boolean>(false);
 
   // Ref to debounce AI calls
   const lastAiUpdateRef = useRef<number>(0);
-
+  
   // Logic to determine mood based on thresholds
   const determineMood = useCallback((data: SensorData): PlantMood => {
     const { moisture, temperature, light } = data;
@@ -58,11 +63,10 @@ const App: React.FC = () => {
   }, [mood]); 
 
   const fetchAiThought = async () => {
-    if (!process.env.API_KEY) return;
-    
+    // If no API key and not in sim mode, might want to skip, but we have fallbacks now
     setIsThinking(true);
     try {
-      const thought = await generatePlantThought(sensorData, mood);
+      const thought = await generatePlantThought(sensorData, mood, nickname);
       setAiThought(thought);
       lastAiUpdateRef.current = Date.now();
     } catch (error) {
@@ -78,8 +82,24 @@ const App: React.FC = () => {
     setSensorData(prev => ({ ...prev, [key]: value }));
   };
 
+  // Handle nickname edit start
+  const startEditing = () => {
+    setTempNickname(nickname);
+    setIsEditingName(true);
+  };
+
+  // Handle nickname save
+  const saveNickname = () => {
+    if (tempNickname.trim()) {
+      setNickname(tempNickname);
+      setIsEditingName(false);
+      // Trigger a new thought with the new name shortly after
+      setTimeout(() => fetchAiThought(), 500);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-4 relative overflow-hidden font-sans">
       
       {/* Background Ambient Glow based on Mood */}
       <div className={`absolute inset-0 opacity-20 transition-colors duration-1000 pointer-events-none 
@@ -91,148 +111,188 @@ const App: React.FC = () => {
         ${mood === 'dark' ? 'bg-gray-900' : ''}
       `} />
 
-      {/* Main LCD Display Container - Styled to look like a 2inch screen if full screen, or a card on desktop */}
-      <div className="z-10 w-full max-w-md bg-black/80 backdrop-blur-md border-4 border-gray-700 rounded-3xl shadow-2xl overflow-hidden flex flex-col relative">
+      {/* Main LCD Display Container */}
+      <div className="z-10 w-full max-w-md bg-black/60 backdrop-blur-xl border-4 border-gray-700 rounded-3xl shadow-2xl overflow-hidden flex flex-col relative min-h-[600px]">
         
+        {/* Animated GIF Background Layer */}
+        <MoodGif mood={mood} />
+
         {/* Header / Status Bar */}
-        <div className="flex justify-between items-center p-4 border-b border-gray-800 bg-gray-900/50">
+        <div className="relative z-10 flex justify-between items-center p-4 border-b border-gray-800/50 bg-gray-900/40">
           <div className="flex items-center gap-2 text-xs font-mono text-gray-400">
             <Cpu size={14} />
             <span>RPi-Zero-2W</span>
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
           </div>
-          <button 
-            onClick={() => setShowControls(!showControls)}
-            className="text-gray-400 hover:text-white transition-colors"
-          >
-            <Settings size={18} />
-          </button>
+          <div className="flex items-center gap-3">
+             <button 
+              onClick={() => setShowCareTips(!showCareTips)}
+              className={`transition-colors ${showCareTips ? 'text-green-400' : 'text-gray-400 hover:text-green-200'}`}
+              title="Care Tips"
+            >
+              <Sprout size={18} />
+            </button>
+            <button 
+              onClick={() => setShowControls(!showControls)}
+              className={`transition-colors ${showControls ? 'text-blue-400' : 'text-gray-400 hover:text-white'}`}
+              title="Settings / Simulation"
+            >
+              <Settings size={18} />
+            </button>
+          </div>
         </div>
 
         {/* Main Content Area */}
-        <div className="p-6 flex flex-col items-center gap-6 min-h-[400px]">
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6">
           
-          {/* The Avatar */}
-          <div className="flex-1 flex items-center justify-center w-full">
+          {/* Nickname Editor */}
+          <div className="mb-4 flex items-center gap-2 z-50">
+            {isEditingName ? (
+              <div className="flex items-center bg-black/50 rounded-lg p-1 border border-gray-600">
+                <input 
+                  type="text" 
+                  value={tempNickname}
+                  onChange={(e) => setTempNickname(e.target.value)}
+                  className="bg-transparent border-none text-white text-center font-bold w-32 focus:ring-0 outline-none"
+                  autoFocus
+                  onKeyDown={(e) => e.key === 'Enter' && saveNickname()}
+                />
+                <button onClick={saveNickname} className="text-green-400 hover:text-green-300 p-1"><Check size={16} /></button>
+                <button onClick={() => setIsEditingName(false)} className="text-red-400 hover:text-red-300 p-1"><X size={16} /></button>
+              </div>
+            ) : (
+              <div className="group flex items-center gap-2 cursor-pointer" onClick={startEditing}>
+                <h2 className="text-2xl font-bold text-white drop-shadow-md group-hover:text-green-200 transition-colors">
+                  {nickname}
+                </h2>
+                <Edit2 size={14} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            )}
+          </div>
+
+          {/* Plant Avatar Visualization */}
+          <div className="mb-6 transform scale-110">
             <PlantAvatar mood={mood} />
           </div>
 
-          {/* The AI Thought Bubble */}
-          <div className="w-full bg-white/10 rounded-xl p-4 backdrop-blur-sm border border-white/5 min-h-[100px] flex items-center justify-center text-center relative group">
-            {isThinking ? (
-               <div className="flex items-center gap-2 text-sm text-green-300 animate-pulse">
-                 <RefreshCw size={16} className="animate-spin" />
-                 <span>Consulting nature spirits...</span>
-               </div>
-            ) : (
-              <p className={`font-mono-display text-xl md:text-2xl leading-tight ${
-                mood === 'happy' ? 'text-green-300' : 'text-amber-300'
-              }`}>
-                "{aiThought}"
-              </p>
-            )}
-            <button 
-              onClick={fetchAiThought} 
-              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-xs text-white/50 hover:text-white"
-            >
-              <RefreshCw size={12} />
-            </button>
-          </div>
-
-          {/* Sensor Grid */}
-          <div className="grid grid-cols-3 gap-3 w-full">
-            <SensorCard 
-              icon={<Droplets size={18} />}
-              label="H2O"
-              value={sensorData.moisture}
-              unit="%"
-              status={
-                sensorData.moisture < PLANT_THRESHOLDS.moisture.low ? 'danger' :
-                sensorData.moisture > PLANT_THRESHOLDS.moisture.high ? 'warning' : 'good'
-              }
-            />
-            <SensorCard 
-              icon={<Thermometer size={18} />}
-              label="Temp"
-              value={sensorData.temperature}
-              unit="°C"
-              status={
-                sensorData.temperature < PLANT_THRESHOLDS.temperature.low ? 'danger' :
-                sensorData.temperature > PLANT_THRESHOLDS.temperature.high ? 'danger' : 'good'
-              }
-            />
-            <SensorCard 
-              icon={<Sun size={18} />}
-              label="Lux"
-              value={sensorData.light}
-              unit="lx"
-              status={
-                sensorData.light < PLANT_THRESHOLDS.light.low ? 'warning' :
-                sensorData.light > PLANT_THRESHOLDS.light.high ? 'danger' : 'good'
-              }
-            />
+          {/* AI Speech Bubble */}
+          <div className="bg-white/90 text-gray-900 p-4 rounded-2xl rounded-tr-none shadow-lg max-w-[80%] animate-bounce-slow relative min-h-[80px] flex items-center justify-center">
+            <div className="absolute -top-2 right-0 w-4 h-4 bg-white/90 transform rotate-45 translate-y-2"></div>
+            <p className="font-mono-display text-lg leading-tight text-center">
+              {isThinking ? (
+                <span className="animate-pulse">Thinking...</span>
+              ) : (
+                aiThought
+              )}
+            </p>
           </div>
         </div>
+
+        {/* Sensor Readings Grid */}
+        <div className="relative z-10 grid grid-cols-3 gap-2 p-4 bg-gray-900/60 backdrop-blur-md border-t border-gray-800">
+          <SensorCard 
+            icon={<Droplets size={20} />}
+            label="Moisture"
+            value={sensorData.moisture}
+            unit="%"
+            status={sensorData.moisture < 30 || sensorData.moisture > 85 ? 'danger' : 'good'}
+          />
+          <SensorCard 
+            icon={<Thermometer size={20} />}
+            label="Temp"
+            value={sensorData.temperature}
+            unit="°C"
+            status={sensorData.temperature < 15 || sensorData.temperature > 30 ? 'danger' : 'good'}
+          />
+          <SensorCard 
+            icon={<Sun size={20} />}
+            label="Light"
+            value={sensorData.light}
+            unit="lx"
+            status={sensorData.light < 100 || sensorData.light > 800 ? 'warning' : 'good'}
+          />
+        </div>
+
+        {/* Collapsible Care Tips Section */}
+        {showCareTips && (
+          <div className="relative z-20 bg-green-900/90 p-4 border-t border-green-700 animate-in slide-in-from-bottom duration-300">
+            <h3 className="font-bold text-green-100 flex items-center gap-2 mb-2">
+              <Sprout size={16} /> Care Guide: {mood.charAt(0).toUpperCase() + mood.slice(1)}
+            </h3>
+            <p className="text-sm text-green-50 leading-relaxed">
+              {CARE_TIPS[mood]}
+            </p>
+          </div>
+        )}
+
+        {/* Collapsible Simulation Controls */}
+        {showControls && (
+          <div className="relative z-20 bg-gray-800/95 p-4 border-t border-gray-700 animate-in slide-in-from-bottom duration-300">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-gray-300 flex items-center gap-2">
+                <Settings size={16} /> Sensor Simulation
+              </h3>
+              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={isSimulationMode}
+                  onChange={(e) => setIsSimulationMode(e.target.checked)}
+                  className="rounded bg-gray-700 border-gray-600 text-green-500 focus:ring-green-500"
+                />
+                Simulate
+              </label>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between text-xs mb-1 text-gray-400">
+                  <span>Moisture</span>
+                  <span>{sensorData.moisture}%</span>
+                </div>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="100" 
+                  value={sensorData.moisture}
+                  onChange={(e) => handleSensorChange('moisture', parseInt(e.target.value))}
+                  disabled={!isSimulationMode}
+                  className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500 disabled:opacity-50"
+                />
+              </div>
+              <div>
+                <div className="flex justify-between text-xs mb-1 text-gray-400">
+                  <span>Temperature</span>
+                  <span>{sensorData.temperature}°C</span>
+                </div>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="40" 
+                  value={sensorData.temperature}
+                  onChange={(e) => handleSensorChange('temperature', parseInt(e.target.value))}
+                  disabled={!isSimulationMode}
+                  className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-red-500 disabled:opacity-50"
+                />
+              </div>
+              <div>
+                <div className="flex justify-between text-xs mb-1 text-gray-400">
+                  <span>Light</span>
+                  <span>{sensorData.light} lx</span>
+                </div>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="1000" 
+                  value={sensorData.light}
+                  onChange={(e) => handleSensorChange('light', parseInt(e.target.value))}
+                  disabled={!isSimulationMode}
+                  className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-yellow-500 disabled:opacity-50"
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* Simulation Controls (Hidden by default) */}
-      {showControls && (
-        <div className="absolute bottom-0 left-0 right-0 bg-gray-800 p-6 rounded-t-3xl z-20 border-t border-gray-600 animate-in slide-in-from-bottom shadow-xl max-w-md mx-auto">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-bold text-lg text-green-400">Hardware Simulation</h3>
-            <button onClick={() => setShowControls(false)} className="text-sm text-gray-400 hover:text-white">Close</button>
-          </div>
-          
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs uppercase tracking-wider text-gray-400">
-                <span>Soil Moisture</span>
-                <span>{sensorData.moisture}%</span>
-              </div>
-              <input 
-                type="range" min="0" max="100" 
-                value={sensorData.moisture}
-                onChange={(e) => handleSensorChange('moisture', parseInt(e.target.value))}
-                className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs uppercase tracking-wider text-gray-400">
-                <span>Temperature</span>
-                <span>{sensorData.temperature}°C</span>
-              </div>
-              <input 
-                type="range" min="-5" max="50" 
-                value={sensorData.temperature}
-                onChange={(e) => handleSensorChange('temperature', parseInt(e.target.value))}
-                className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-red-500"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs uppercase tracking-wider text-gray-400">
-                <span>Light Level</span>
-                <span>{sensorData.light} lx</span>
-              </div>
-              <input 
-                type="range" min="0" max="1000" step="10"
-                value={sensorData.light}
-                onChange={(e) => handleSensorChange('light', parseInt(e.target.value))}
-                className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-yellow-400"
-              />
-            </div>
-
-            <div className="mt-4 p-3 bg-gray-900/50 rounded border border-gray-700 text-xs text-gray-400 font-mono">
-              <p className="mb-1 text-green-400 font-bold">// HARDWARE SETUP INFO:</p>
-              <p>1. Connect Capacitive Soil Sensor to ADC (MCP3008) or GPIO.</p>
-              <p>2. Connect DHT22 to GPIO 4.</p>
-              <p>3. Connect LDR to ADC.</p>
-              <p>4. Run a local Python server to WebSocket these values to localhost:3000.</p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
