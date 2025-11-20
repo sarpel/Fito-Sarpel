@@ -163,8 +163,39 @@ export const PlantAvatar: React.FC<PlantAvatarProps> = ({ mood, stage }) => {
             transition-all duration-700
          `}>
              {/* Highlght/Reflection for 3D effect */}
-             <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-white/20 via-transparent to-transparent pointer-events-none rounded-b-[3rem]"></div>
-             <div className="absolute top-2 right-4 w-2 h-12 bg-white/10 rounded-full rotate-12 blur-[1px]"></div>
+             <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-white/20 via-transparent to-transparent pointer-events-none rounded-b-[3rem] z-20"></div>
+             <div className="absolute top-2 right-4 w-2 h-12 bg-white/10 rounded-full rotate-12 blur-[1px] z-20"></div>
+
+            {/* --- REACTIVE MOOD OVERLAYS --- */}
+            
+            {/* Freezing: Frost Texture */}
+            {mood === 'freezing' && (
+               <div className="absolute inset-0 z-10 opacity-60 pointer-events-none rounded-b-[3rem]"
+                    style={{
+                       backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.2) 0px, rgba(255,255,255,0.2) 2px, transparent 2px, transparent 8px), radial-gradient(circle at 30% 30%, rgba(255,255,255,0.4), transparent 40%)'
+                    }}
+               ></div>
+            )}
+
+            {/* Hot: Heat Shimmer */}
+            {mood === 'hot' && (
+               <div className="absolute -inset-full top-0 block h-full w-[200%] -skew-x-12 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-30 animate-heat-shimmer z-10 pointer-events-none"></div>
+            )}
+
+            {/* Drowning: Wet Gloss / Condensation */}
+            {mood === 'drowning' && (
+               <div className="absolute inset-0 z-10 pointer-events-none rounded-b-[3rem] bg-gradient-to-b from-blue-400/10 to-transparent">
+                  <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.2)_0%,transparent_100%)] opacity-50"></div>
+                  {/* Subtle sliding gloss */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-50 animate-pulse"></div>
+               </div>
+            )}
+            
+             {/* Scorched: Dry/Matte Overlay */}
+            {mood === 'scorched' && (
+                <div className="absolute inset-0 z-10 bg-black/10 pointer-events-none rounded-b-[3rem] mix-blend-overlay"></div>
+            )}
+
 
             {/* --- FACE CONTAINER --- */}
             <div className="relative z-40 w-full flex flex-col items-center justify-center -mt-2">
