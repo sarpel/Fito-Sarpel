@@ -3,9 +3,9 @@ import { PlantAvatar } from './components/PlantAvatar';
 import { SensorCard } from './components/SensorCard';
 import { MoodGif } from './components/MoodGif';
 import { generatePlantThought } from './services/geminiService';
-import { SensorData, PlantMood } from './types';
-import { PLANT_THRESHOLDS, DEFAULT_SENSOR_DATA, CARE_TIPS } from './constants';
-import { Settings, Thermometer, Droplets, Sun, Cpu, Sprout, Edit2, Check, X } from 'lucide-react';
+import { SensorData, PlantMood, PlantStage } from './types';
+import { PLANT_THRESHOLDS, DEFAULT_SENSOR_DATA, CARE_TIPS, GROWTH_CONFIG } from './constants';
+import { Settings, Thermometer, Droplets, Sun, Cpu, Sprout, Edit2, Check, X, Sparkles } from 'lucide-react';
 
 const App: React.FC = () => {
   // State for sensor readings
@@ -19,6 +19,10 @@ const App: React.FC = () => {
   const [aiThought, setAiThought] = useState<string>("I'm just photosynthesizing...");
   const [isThinking, setIsThinking] = useState<boolean>(false);
   
+  // Growth State
+  const [xp, setXp] = useState<number>(0);
+  const [stage, setStage] = useState<PlantStage>(1);
+
   // UI States
   const [isSimulationMode, setIsSimulationMode] = useState<boolean>(true);
   const [showControls, setShowControls] = useState<boolean>(false);
@@ -50,6 +54,26 @@ const App: React.FC = () => {
     setMood(newMood);
   }, [sensorData, determineMood]);
 
+  // Growth Logic
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (mood === 'happy') {
+      interval = setInterval(() => {
+        setXp((prevXp) => {
+          const newXp = prevXp + GROWTH_CONFIG.XP_PER_TICK;
+          
+          // Determine Stage based on XP
+          if (newXp >= GROWTH_CONFIG.THRESHOLDS[4]) setStage(4);
+          else if (newXp >= GROWTH_CONFIG.THRESHOLDS[3]) setStage(3);
+          else if (newXp >= GROWTH_CONFIG.THRESHOLDS[2]) setStage(2);
+          
+          return newXp;
+        });
+      }, GROWTH_CONFIG.TICK_RATE_MS);
+    }
+    return () => clearInterval(interval);
+  }, [mood]);
+
   // AI Thought Generator Effect
   useEffect(() => {
     const now = Date.now();
@@ -60,7 +84,7 @@ const App: React.FC = () => {
       fetchAiThought();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mood]); 
+  }, [mood, stage]); // Also trigger when stage changes
 
   const fetchAiThought = async () => {
     // If no API key and not in sim mode, might want to skip, but we have fallbacks now
@@ -98,6 +122,21 @@ const App: React.FC = () => {
     }
   };
 
+  // Calculate progress to next level
+  const getNextLevelXp = () => {
+    if (stage === 4) return GROWTH_CONFIG.THRESHOLDS[4]; // Cap at max
+    return GROWTH_CONFIG.THRESHOLDS[(stage + 1) as PlantStage];
+  };
+
+  const getPrevLevelXp = () => {
+    if (stage === 1) return 0;
+    return GROWTH_CONFIG.THRESHOLDS[stage as PlantStage];
+  };
+
+  const progressPercent = Math.min(100, Math.max(0, 
+    ((xp - getPrevLevelXp()) / (getNextLevelXp() - getPrevLevelXp())) * 100
+  ));
+
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-4 relative overflow-hidden font-sans">
       
@@ -121,7 +160,7 @@ const App: React.FC = () => {
         <div className="relative z-10 flex justify-between items-center p-4 border-b border-gray-800/50 bg-gray-900/40">
           <div className="flex items-center gap-2 text-xs font-mono text-gray-400">
             <Cpu size={14} />
-            <span>RPi-Zero-2W</span>
+            <span>RPi-Z-2W</span>
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
           </div>
           <div className="flex items-center gap-3">
@@ -146,33 +185,49 @@ const App: React.FC = () => {
         <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6">
           
           {/* Nickname Editor */}
-          <div className="mb-4 flex items-center gap-2 z-50">
-            {isEditingName ? (
-              <div className="flex items-center bg-black/50 rounded-lg p-1 border border-gray-600">
-                <input 
-                  type="text" 
-                  value={tempNickname}
-                  onChange={(e) => setTempNickname(e.target.value)}
-                  className="bg-transparent border-none text-white text-center font-bold w-32 focus:ring-0 outline-none"
-                  autoFocus
-                  onKeyDown={(e) => e.key === 'Enter' && saveNickname()}
-                />
-                <button onClick={saveNickname} className="text-green-400 hover:text-green-300 p-1"><Check size={16} /></button>
-                <button onClick={() => setIsEditingName(false)} className="text-red-400 hover:text-red-300 p-1"><X size={16} /></button>
+          <div className="mb-2 flex items-center gap-2 z-50 flex-col">
+            <div className="flex items-center gap-2">
+              {isEditingName ? (
+                <div className="flex items-center bg-black/50 rounded-lg p-1 border border-gray-600">
+                  <input 
+                    type="text" 
+                    value={tempNickname}
+                    onChange={(e) => setTempNickname(e.target.value)}
+                    className="bg-transparent border-none text-white text-center font-bold w-32 focus:ring-0 outline-none"
+                    autoFocus
+                    onKeyDown={(e) => e.key === 'Enter' && saveNickname()}
+                  />
+                  <button onClick={saveNickname} className="text-green-400 hover:text-green-300 p-1"><Check size={16} /></button>
+                  <button onClick={() => setIsEditingName(false)} className="text-red-400 hover:text-red-300 p-1"><X size={16} /></button>
+                </div>
+              ) : (
+                <div className="group flex items-center gap-2 cursor-pointer" onClick={startEditing}>
+                  <h2 className="text-2xl font-bold text-white drop-shadow-md group-hover:text-green-200 transition-colors">
+                    {nickname}
+                  </h2>
+                  <Edit2 size={14} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              )}
+            </div>
+            
+            {/* Growth Progress Bar */}
+            <div className="w-32 flex flex-col gap-1 items-center" title={`XP: ${xp}`}>
+              <div className="flex justify-between w-full text-[10px] text-gray-300 uppercase font-bold tracking-wider">
+                 <span>Lvl {stage}</span>
+                 <span>{GROWTH_CONFIG.STAGE_NAMES[stage]}</span>
               </div>
-            ) : (
-              <div className="group flex items-center gap-2 cursor-pointer" onClick={startEditing}>
-                <h2 className="text-2xl font-bold text-white drop-shadow-md group-hover:text-green-200 transition-colors">
-                  {nickname}
-                </h2>
-                <Edit2 size={14} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="w-full h-1.5 bg-gray-700 rounded-full overflow-hidden border border-gray-600">
+                 <div 
+                    className="h-full bg-gradient-to-r from-green-500 to-emerald-400 transition-all duration-1000"
+                    style={{ width: `${stage === 4 ? 100 : progressPercent}%` }}
+                 ></div>
               </div>
-            )}
+            </div>
           </div>
 
           {/* Plant Avatar Visualization */}
           <div className="mb-6 transform scale-110">
-            <PlantAvatar mood={mood} />
+            <PlantAvatar mood={mood} stage={stage} />
           </div>
 
           {/* AI Speech Bubble */}
@@ -232,15 +287,25 @@ const App: React.FC = () => {
               <h3 className="font-bold text-gray-300 flex items-center gap-2">
                 <Settings size={16} /> Sensor Simulation
               </h3>
-              <label className="flex items-center gap-2 text-xs cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  checked={isSimulationMode}
-                  onChange={(e) => setIsSimulationMode(e.target.checked)}
-                  className="rounded bg-gray-700 border-gray-600 text-green-500 focus:ring-green-500"
-                />
-                Simulate
-              </label>
+              <div className="flex gap-2">
+                {/* Manual Grow Button for Demo */}
+                <button 
+                   onClick={() => { setXp(prev => prev + 20); }}
+                   className="px-2 py-1 bg-purple-600 hover:bg-purple-500 rounded text-xs font-bold text-white flex items-center gap-1"
+                >
+                  <Sparkles size={12}/> Grow
+                </button>
+
+                <label className="flex items-center gap-2 text-xs cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={isSimulationMode}
+                    onChange={(e) => setIsSimulationMode(e.target.checked)}
+                    className="rounded bg-gray-700 border-gray-600 text-green-500 focus:ring-green-500"
+                  />
+                  Simulate
+                </label>
+              </div>
             </div>
             
             <div className="space-y-4">

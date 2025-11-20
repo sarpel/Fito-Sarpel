@@ -1,11 +1,12 @@
 import React from 'react';
-import { PlantMood } from '../types';
+import { PlantMood, PlantStage } from '../types';
 
 interface PlantAvatarProps {
   mood: PlantMood;
+  stage: PlantStage;
 }
 
-export const PlantAvatar: React.FC<PlantAvatarProps> = ({ mood }) => {
+export const PlantAvatar: React.FC<PlantAvatarProps> = ({ mood, stage }) => {
   
   // Dynamic gradients for the pot based on mood
   const getPotStyle = () => {
@@ -29,6 +30,15 @@ export const PlantAvatar: React.FC<PlantAvatarProps> = ({ mood }) => {
     return '#22c55e'; // healthy green
   };
 
+  // Helper to calculate stem height and width based on stage
+  const getStemDimensions = () => {
+    switch(stage) {
+      case 1: return 'w-2 h-12 bottom-24';
+      case 2: return 'w-3 h-20 bottom-24';
+      default: return 'w-3 h-28 bottom-24';
+    }
+  };
+
   return (
     <div className="relative w-64 h-64 flex items-end justify-center">
       
@@ -36,49 +46,99 @@ export const PlantAvatar: React.FC<PlantAvatarProps> = ({ mood }) => {
       <div className="absolute bottom-4 w-32 h-4 bg-black/40 rounded-[100%] blur-md transform scale-y-50 z-0"></div>
 
       {/* --- PLANT STEM & LEAVES (Layered behind pot rim front, but atop pot back) --- */}
-      <div className={`absolute bottom-24 z-10 flex flex-col items-center origin-bottom transition-all duration-1000
+      <div className={`absolute z-10 flex flex-col items-center origin-bottom transition-all duration-1000
+         ${getStemDimensions()}
          ${mood === 'thirsty' ? 'rotate-6 scale-y-90 translate-y-4' : ''}
       `}>
          {/* Main Stem */}
-         <div className={`w-3 h-28 rounded-full relative transition-colors duration-1000
+         <div className={`rounded-full relative transition-all duration-1000 w-full h-full
             ${mood === 'thirsty' ? 'bg-amber-700' : 'bg-gradient-to-t from-green-800 to-green-500'}
             ${mood === 'freezing' ? 'from-cyan-900 to-cyan-600' : ''}
          `}>
             
-            {/* Left Leaf */}
-            <div className={`absolute bottom-10 -left-12 origin-bottom-right transition-all duration-1000
-                ${mood === 'thirsty' ? 'rotate-[50deg] translate-y-6 opacity-80' : 'animate-wave-left'}
-                ${mood === 'freezing' ? 'animate-shiver' : ''}
-            `}>
-               <svg width="60" height="60" viewBox="0 0 100 100" className="drop-shadow-sm filter">
-                  <path d="M100,100 C20,80 0,20 0,0 C40,10 90,50 100,100" 
-                        fill={getLeafColor()} 
-                        className="transition-fill duration-700" />
-                  <path d="M100,100 C50,50 30,30 0,0" stroke="rgba(0,0,0,0.1)" strokeWidth="2" fill="none"/>
-               </svg>
-            </div>
+            {/* STAGE 3 & 4: Big Leaves */}
+            {stage >= 3 && (
+              <>
+                {/* Left Leaf */}
+                <div className={`absolute bottom-10 -left-12 origin-bottom-right transition-all duration-1000
+                    ${mood === 'thirsty' ? 'rotate-[50deg] translate-y-6 opacity-80' : 'animate-wave-left'}
+                    ${mood === 'freezing' ? 'animate-shiver' : ''}
+                `}>
+                  <svg width="60" height="60" viewBox="0 0 100 100" className="drop-shadow-sm filter">
+                      <path d="M100,100 C20,80 0,20 0,0 C40,10 90,50 100,100" 
+                            fill={getLeafColor()} 
+                            className="transition-fill duration-700" />
+                      <path d="M100,100 C50,50 30,30 0,0" stroke="rgba(0,0,0,0.1)" strokeWidth="2" fill="none"/>
+                  </svg>
+                </div>
 
-            {/* Right Leaf */}
-            <div className={`absolute bottom-14 -right-12 origin-bottom-left transition-all duration-1000
-                ${mood === 'thirsty' ? 'rotate-[-50deg] translate-y-6 opacity-80' : 'animate-wave-right'}
-                ${mood === 'freezing' ? 'animate-shiver' : ''}
-            `}>
-                <svg width="60" height="60" viewBox="0 0 100 100" className="drop-shadow-sm transform -scale-x-100">
-                  <path d="M100,100 C20,80 0,20 0,0 C40,10 90,50 100,100" 
-                        fill={getLeafColor()} 
-                        className="transition-fill duration-700" />
-                  <path d="M100,100 C50,50 30,30 0,0" stroke="rgba(0,0,0,0.1)" strokeWidth="2" fill="none"/>
-               </svg>
-            </div>
+                {/* Right Leaf */}
+                <div className={`absolute bottom-14 -right-12 origin-bottom-left transition-all duration-1000
+                    ${mood === 'thirsty' ? 'rotate-[-50deg] translate-y-6 opacity-80' : 'animate-wave-right'}
+                    ${mood === 'freezing' ? 'animate-shiver' : ''}
+                `}>
+                    <svg width="60" height="60" viewBox="0 0 100 100" className="drop-shadow-sm transform -scale-x-100">
+                      <path d="M100,100 C20,80 0,20 0,0 C40,10 90,50 100,100" 
+                            fill={getLeafColor()} 
+                            className="transition-fill duration-700" />
+                      <path d="M100,100 C50,50 30,30 0,0" stroke="rgba(0,0,0,0.1)" strokeWidth="2" fill="none"/>
+                  </svg>
+                </div>
+              </>
+            )}
 
-             {/* Top Sprout / New Leaf */}
-             <div className={`absolute -top-4 left-1/2 -translate-x-1/2 w-6 h-6 origin-bottom transition-all duration-1000
+            {/* STAGE 2: Smaller Leaves */}
+            {stage === 2 && (
+               <>
+                 <div className="absolute bottom-6 -left-6 origin-bottom-right animate-wave-left scale-50">
+                    <svg width="60" height="60" viewBox="0 0 100 100">
+                      <path d="M100,100 C20,80 0,20 0,0 C40,10 90,50 100,100" fill={getLeafColor()} />
+                    </svg>
+                 </div>
+                 <div className="absolute bottom-8 -right-6 origin-bottom-left animate-wave-right scale-50 transform -scale-x-100">
+                    <svg width="60" height="60" viewBox="0 0 100 100">
+                      <path d="M100,100 C20,80 0,20 0,0 C40,10 90,50 100,100" fill={getLeafColor()} />
+                    </svg>
+                 </div>
+               </>
+            )}
+
+            {/* STAGE 1: Tiny Seedling Leaves */}
+            {stage === 1 && (
+               <>
+                  <div className="absolute top-0 -left-3 w-4 h-4 bg-green-500 rounded-full rounded-br-none -rotate-45"></div>
+                  <div className="absolute top-0 right-1 w-4 h-4 bg-green-500 rounded-full rounded-bl-none rotate-45"></div>
+               </>
+            )}
+
+             {/* Top Sprout / Flower (Always on top of stem) */}
+             <div className={`absolute -top-4 left-1/2 -translate-x-1/2 origin-bottom transition-all duration-1000
                  ${mood === 'thirsty' ? 'rotate-90 scale-0' : 'scale-100'}
              `}>
-                 <svg width="30" height="30" viewBox="0 0 100 100">
-                    <path d="M50,100 C20,60 20,20 50,0 C80,20 80,60 50,100" 
-                          fill={mood === 'freezing' ? '#67e8f9' : '#86efac'} />
-                 </svg>
+                {/* Stage 4: FLOWER */}
+                {stage === 4 ? (
+                  <div className="w-16 h-16 -mt-8 relative animate-pulse">
+                     <svg viewBox="0 0 100 100" className="drop-shadow-md">
+                       {/* Petals */}
+                       <g transform="translate(50,50)">
+                          {[0, 45, 90, 135, 180, 225, 270, 315].map(rot => (
+                             <ellipse key={rot} cx="0" cy="-25" rx="10" ry="25" fill="#f472b6" transform={`rotate(${rot})`} />
+                          ))}
+                          <circle cx="0" cy="0" r="15" fill="#fbbf24" />
+                       </g>
+                     </svg>
+                  </div>
+                ) : (
+                  /* Standard Sprout (Not for Stage 1 which uses custom CSS shapes) */
+                  stage > 1 && (
+                    <div className="w-6 h-6">
+                      <svg width="30" height="30" viewBox="0 0 100 100">
+                          <path d="M50,100 C20,60 20,20 50,0 C80,20 80,60 50,100" 
+                                fill={mood === 'freezing' ? '#67e8f9' : '#86efac'} />
+                      </svg>
+                    </div>
+                  )
+                )}
              </div>
          </div>
       </div>
