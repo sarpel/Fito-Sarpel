@@ -46,7 +46,7 @@ export const PlantAvatar: React.FC<PlantAvatarProps> = ({ mood, stage }) => {
       <div className="absolute bottom-4 w-32 h-4 bg-black/40 rounded-[100%] blur-md transform scale-y-50 z-0"></div>
 
       {/* --- PLANT STEM & LEAVES (Layered behind pot rim front, but atop pot back) --- */}
-      <div className={`absolute z-10 flex flex-col items-center origin-bottom transition-all duration-1000
+      <div className={`absolute z-10 flex flex-col items-center origin-bottom transition-all duration-1000 animate-breathe
          ${getStemDimensions()}
          ${mood === 'thirsty' ? 'rotate-6 scale-y-90 translate-y-4' : ''}
       `}>
@@ -182,12 +182,14 @@ export const PlantAvatar: React.FC<PlantAvatarProps> = ({ mood, stage }) => {
                <div className="absolute -inset-full top-0 block h-full w-[200%] -skew-x-12 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-30 animate-heat-shimmer z-10 pointer-events-none"></div>
             )}
 
-            {/* Drowning: Wet Gloss / Condensation */}
+            {/* Drowning: Wet Gloss / Condensation Animations */}
             {mood === 'drowning' && (
                <div className="absolute inset-0 z-10 pointer-events-none rounded-b-[3rem] bg-gradient-to-b from-blue-400/10 to-transparent">
                   <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.2)_0%,transparent_100%)] opacity-50"></div>
-                  {/* Subtle sliding gloss */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-50 animate-pulse"></div>
+                  {/* Droplets */}
+                  <div className="absolute top-2 left-10 w-1.5 h-1.5 bg-blue-200 rounded-full animate-drip" style={{animationDuration: '1.5s'}}></div>
+                  <div className="absolute top-4 left-20 w-2 h-2 bg-blue-200 rounded-full animate-drip" style={{animationDuration: '2.2s', animationDelay: '0.5s'}}></div>
+                  <div className="absolute top-2 right-8 w-1.5 h-3 bg-blue-200 rounded-full animate-drip" style={{animationDuration: '1.8s', animationDelay: '1s'}}></div>
                </div>
             )}
             
@@ -200,7 +202,7 @@ export const PlantAvatar: React.FC<PlantAvatarProps> = ({ mood, stage }) => {
             {/* --- FACE CONTAINER --- */}
             <div className="relative z-40 w-full flex flex-col items-center justify-center -mt-2">
                 
-                {/* SWEAT DROPS */}
+                {/* SWEAT DROPS (Forehead) */}
                 {(mood === 'hot' || mood === 'drowning') && (
                     <>
                       <div className="absolute -top-8 right-6 w-2 h-3 bg-blue-300 rounded-full animate-drip opacity-80"></div>

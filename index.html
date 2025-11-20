@@ -19,6 +19,8 @@
               'pant': 'pant 0.8s ease-in-out infinite',
               'drip': 'drip 2s linear infinite',
               'heat-shimmer': 'heat-shimmer 2s infinite linear',
+              'breathe': 'breathe 4s ease-in-out infinite',
+              'flicker': 'flicker 2s infinite',
             },
             keyframes: {
               shiver: {
@@ -54,11 +56,27 @@
               },
               drip: {
                 '0%': { transform: 'translateY(0)', opacity: '1' },
-                '100%': { transform: 'translateY(20px)', opacity: '0' },
+                '100%': { transform: 'translateY(40px)', opacity: '0' },
               },
               'heat-shimmer': {
                 '0%': { transform: 'translateX(-150%) skewX(-15deg)' },
                 '100%': { transform: 'translateX(150%) skewX(-15deg)' }
+              },
+              breathe: {
+                '0%, 100%': { transform: 'scaleY(1) scaleX(1)' },
+                '50%': { transform: 'scaleY(1.02) scaleX(1.01) translateY(-1%)' }
+              },
+              flicker: {
+                '0%, 100%': { opacity: '1' },
+                '5%': { opacity: '0.8' },
+                '10%': { opacity: '0.9' },
+                '15%': { opacity: '0.1' },
+                '20%': { opacity: '1' },
+                '50%': { opacity: '0.9' },
+                '55%': { opacity: '0.5' },
+                '60%': { opacity: '0.9' },
+                '90%': { opacity: '1' },
+                '95%': { opacity: '0.3' },
               }
             }
           }

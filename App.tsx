@@ -150,6 +150,11 @@ const App: React.FC = () => {
         ${mood === 'dark' ? 'bg-gray-900' : ''}
       `} />
 
+      {/* Flickering Dark Mode Overlay */}
+      {mood === 'dark' && (
+         <div className="absolute inset-0 bg-black/40 animate-flicker pointer-events-none z-20 mix-blend-multiply"></div>
+      )}
+
       {/* Main LCD Display Container */}
       <div className="z-10 w-full max-w-md bg-black/60 backdrop-blur-xl border-4 border-gray-700 rounded-3xl shadow-2xl overflow-hidden flex flex-col relative min-h-[600px]">
         

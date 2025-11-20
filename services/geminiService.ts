@@ -24,7 +24,8 @@ export const generatePlantThought = async (data: SensorData, mood: PlantMood, ni
   Sensor Data: Moisture ${data.moisture}%, Temp ${data.temperature}C, Light ${data.light}.
   
   React to your conditions in 12 words or less.
-  - Happy: Zen, grateful, or scientific.
+  
+  - Happy: Your conditions are perfect! Ignore yourself and write a mini positive sentence for the human looking at you. Compliment them, validate them, or tell them they are doing a good job.
   - Thirsty: Beg for water dramatically.
   - Drowning: Complain about wet feet/roots.
   - Hot: Complain about heat/wilting.

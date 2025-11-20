@@ -1,5 +1,5 @@
 import { SensorData, PlantMood } from "./types";
-import { config } from './config';
+import { config } from './plantConfig';
 
 // Export configured values directly
 export const PLANT_THRESHOLDS = config.thresholds;
