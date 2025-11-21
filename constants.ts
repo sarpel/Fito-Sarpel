@@ -1,3 +1,4 @@
+
 import { SensorData, PlantMood } from "./types";
 import { config } from './plantConfig';
 
@@ -29,3 +30,5 @@ export const MOOD_GIFS: Record<PlantMood, string> = config.moodGifs as Record<Pl
 export const CARE_TIPS: Record<PlantMood, string> = config.careTips as Record<PlantMood, string>;
 
 export const FALLBACK_THOUGHTS: Record<PlantMood, string[]> = config.fallbackThoughts as Record<PlantMood, string[]>;
+
+export const WATER_DROP_SOUND_URL = "https://actions.google.com/sounds/v1/water/water_drop.ogg";

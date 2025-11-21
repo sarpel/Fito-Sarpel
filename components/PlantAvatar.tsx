@@ -36,8 +36,9 @@ export const PlantAvatar: React.FC<PlantAvatarProps> = ({ mood, stage }) => {
   // Helper to calculate stem height and width based on stage
   const getStemDimensions = () => {
     switch(stage) {
-      case 1: return 'w-2 h-12 bottom-24';
-      case 2: return 'w-3 h-20 bottom-24';
+      case 1: return 'w-2 h-10 bottom-24';
+      case 2: return 'w-2.5 h-16 bottom-24';
+      case 3: return 'w-3 h-24 bottom-24';
       default: return 'w-3 h-28 bottom-24';
     }
   };
@@ -70,11 +71,11 @@ export const PlantAvatar: React.FC<PlantAvatarProps> = ({ mood, stage }) => {
             ${mood === 'sleeping' ? 'from-indigo-900 to-green-800' : ''}
          `}>
             
-            {/* STAGE 3 & 4: Big Leaves */}
+            {/* STAGE 3 & 4: Big Leaves (Lower Pair) */}
             {stage >= 3 && (
               <>
                 {/* Left Leaf */}
-                <div className={`absolute bottom-10 -left-12 origin-bottom-right transition-all duration-1000
+                <div className={`absolute bottom-8 -left-12 origin-bottom-right transition-all duration-1000
                     ${mood === 'thirsty' ? 'rotate-[50deg] translate-y-6 opacity-80' : 'animate-wave-left'}
                     ${mood === 'freezing' ? 'animate-shiver' : ''}
                     ${mood === 'sleeping' ? 'rotate-[-5deg] scale-95' : ''}
@@ -88,7 +89,7 @@ export const PlantAvatar: React.FC<PlantAvatarProps> = ({ mood, stage }) => {
                 </div>
 
                 {/* Right Leaf */}
-                <div className={`absolute bottom-14 -right-12 origin-bottom-left transition-all duration-1000
+                <div className={`absolute bottom-12 -right-12 origin-bottom-left transition-all duration-1000
                     ${mood === 'thirsty' ? 'rotate-[-50deg] translate-y-6 opacity-80' : 'animate-wave-right'}
                     ${mood === 'freezing' ? 'animate-shiver' : ''}
                     ${mood === 'sleeping' ? 'rotate-[5deg] scale-95' : ''}
@@ -103,7 +104,30 @@ export const PlantAvatar: React.FC<PlantAvatarProps> = ({ mood, stage }) => {
               </>
             )}
 
-            {/* STAGE 2: Smaller Leaves */}
+            {/* STAGE 3 & 4: Extra Foliage (Upper Pair - Smaller) */}
+            {stage >= 3 && (
+              <>
+                <div className={`absolute top-1/3 -left-8 origin-bottom-right transition-all duration-1000 scale-75
+                    ${mood === 'thirsty' ? 'rotate-[60deg] translate-y-4 opacity-80' : 'animate-wave-left'}
+                    ${mood === 'freezing' ? 'animate-shiver' : ''}
+                `}>
+                  <svg width="60" height="60" viewBox="0 0 100 100" className="drop-shadow-sm">
+                      <path d="M100,100 C20,80 0,20 0,0 C40,10 90,50 100,100" fill={getLeafColor()} />
+                  </svg>
+                </div>
+                
+                <div className={`absolute top-1/4 -right-8 origin-bottom-left transition-all duration-1000 scale-75
+                    ${mood === 'thirsty' ? 'rotate-[-60deg] translate-y-4 opacity-80' : 'animate-wave-right'}
+                    ${mood === 'freezing' ? 'animate-shiver' : ''}
+                `}>
+                    <svg width="60" height="60" viewBox="0 0 100 100" className="drop-shadow-sm transform -scale-x-100">
+                      <path d="M100,100 C20,80 0,20 0,0 C40,10 90,50 100,100" fill={getLeafColor()} />
+                    </svg>
+                </div>
+              </>
+            )}
+
+            {/* STAGE 2: Sprout Leaves (Medium size) */}
             {stage === 2 && (
                <>
                  <div className={`absolute bottom-6 -left-6 origin-bottom-right scale-50 ${mood === 'sleeping' ? '' : 'animate-wave-left'}`}>
@@ -134,7 +158,7 @@ export const PlantAvatar: React.FC<PlantAvatarProps> = ({ mood, stage }) => {
              `}>
                 {/* Stage 4: FLOWER */}
                 {stage === 4 ? (
-                  <div className={`w-16 h-16 -mt-8 relative ${mood === 'sleeping' ? 'opacity-80 scale-90' : 'animate-pulse'}`}>
+                  <div className={`w-20 h-20 -mt-10 relative ${mood === 'sleeping' ? 'opacity-80 scale-90' : 'animate-pulse'}`}>
                      <svg viewBox="0 0 100 100" className="drop-shadow-md">
                        {/* Petals */}
                        <g transform="translate(50,50)">
@@ -148,7 +172,7 @@ export const PlantAvatar: React.FC<PlantAvatarProps> = ({ mood, stage }) => {
                      </svg>
                   </div>
                 ) : (
-                  /* Standard Sprout (Not for Stage 1 which uses custom CSS shapes) */
+                  /* Standard Sprout Tip for stages 2 and 3 */
                   stage > 1 && (
                     <div className="w-6 h-6">
                       <svg width="30" height="30" viewBox="0 0 100 100">
@@ -179,42 +203,54 @@ export const PlantAvatar: React.FC<PlantAvatarProps> = ({ mood, stage }) => {
          {/* Pot Body */}
          <div className={`w-36 h-28 -mt-4 bg-gradient-to-br ${getPotStyle()} 
             rounded-b-[3rem] rounded-t-lg shadow-2xl flex flex-col items-center justify-center relative overflow-hidden
-            transition-all duration-700
+            transition-all duration-700 border-x border-b border-white/5
          `}>
-             {/* Highlght/Reflection for 3D effect */}
+             {/* Highlight/Reflection for 3D effect */}
              <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-white/20 via-transparent to-transparent pointer-events-none rounded-b-[3rem] z-20"></div>
              <div className="absolute top-2 right-4 w-2 h-12 bg-white/10 rounded-full rotate-12 blur-[1px] z-20"></div>
 
             {/* --- REACTIVE MOOD OVERLAYS --- */}
             
-            {/* Freezing: Frost Texture */}
+            {/* Freezing: Frost Texture & Icy Rim */}
             {mood === 'freezing' && (
-               <div className="absolute inset-0 z-10 opacity-60 pointer-events-none rounded-b-[3rem]"
-                    style={{
-                       backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.2) 0px, rgba(255,255,255,0.2) 2px, transparent 2px, transparent 8px), radial-gradient(circle at 30% 30%, rgba(255,255,255,0.4), transparent 40%)'
-                    }}
-               ></div>
+               <>
+                   <div className="absolute inset-0 z-10 opacity-60 pointer-events-none rounded-b-[3rem]"
+                        style={{
+                           backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.2) 0px, rgba(255,255,255,0.2) 2px, transparent 2px, transparent 8px), radial-gradient(circle at 30% 30%, rgba(255,255,255,0.4), transparent 40%)'
+                        }}
+                   ></div>
+                   <div className="absolute top-0 w-full h-4 bg-white/40 blur-sm"></div>
+               </>
             )}
 
-            {/* Hot: Heat Shimmer */}
+            {/* Hot: Heat Shimmer & Red Pulse */}
             {mood === 'hot' && (
-               <div className="absolute -inset-full top-0 block h-full w-[200%] -skew-x-12 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-30 animate-heat-shimmer z-10 pointer-events-none"></div>
+               <>
+                  <div className="absolute -inset-full top-0 block h-full w-[200%] -skew-x-12 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-30 animate-heat-shimmer z-10 pointer-events-none"></div>
+                  <div className="absolute inset-0 bg-red-500/10 animate-pulse z-0"></div>
+               </>
             )}
 
             {/* Drowning: Wet Gloss / Condensation Animations */}
             {mood === 'drowning' && (
-               <div className="absolute inset-0 z-10 pointer-events-none rounded-b-[3rem] bg-gradient-to-b from-blue-400/10 to-transparent">
-                  <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.2)_0%,transparent_100%)] opacity-50"></div>
+               <div className="absolute inset-0 z-10 pointer-events-none rounded-b-[3rem] bg-gradient-to-b from-blue-400/10 to-blue-600/30">
+                  <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.3)_0%,transparent_60%,rgba(0,0,255,0.1)_100%)]"></div>
                   {/* Droplets */}
-                  <div className="absolute top-2 left-10 w-1.5 h-1.5 bg-blue-200 rounded-full animate-drip" style={{animationDuration: '1.5s'}}></div>
-                  <div className="absolute top-4 left-20 w-2 h-2 bg-blue-200 rounded-full animate-drip" style={{animationDuration: '2.2s', animationDelay: '0.5s'}}></div>
-                  <div className="absolute top-2 right-8 w-1.5 h-3 bg-blue-200 rounded-full animate-drip" style={{animationDuration: '1.8s', animationDelay: '1s'}}></div>
+                  <div className="absolute top-2 left-10 w-1.5 h-1.5 bg-blue-100 rounded-full animate-drip shadow-sm" style={{animationDuration: '1.5s'}}></div>
+                  <div className="absolute top-4 left-20 w-2 h-2 bg-blue-100 rounded-full animate-drip shadow-sm" style={{animationDuration: '2.2s', animationDelay: '0.5s'}}></div>
+                  <div className="absolute top-2 right-8 w-1.5 h-3 bg-blue-100 rounded-full animate-drip shadow-sm" style={{animationDuration: '1.8s', animationDelay: '1s'}}></div>
                </div>
             )}
             
-             {/* Scorched: Dry/Matte Overlay */}
-            {mood === 'scorched' && (
-                <div className="absolute inset-0 z-10 bg-black/10 pointer-events-none rounded-b-[3rem] mix-blend-overlay"></div>
+             {/* Thirsty / Scorched: Cracked / Dry Texture */}
+            {(mood === 'scorched' || mood === 'thirsty') && (
+                <div className="absolute inset-0 z-10 pointer-events-none rounded-b-[3rem] opacity-25 mix-blend-overlay"
+                    style={{
+                        backgroundImage: `linear-gradient(45deg, transparent 48%, rgba(0,0,0,0.4) 50%, transparent 52%),
+                                          linear-gradient(-45deg, transparent 48%, rgba(0,0,0,0.4) 50%, transparent 52%)`,
+                        backgroundSize: '20px 20px'
+                    }}
+                ></div>
             )}
 
 

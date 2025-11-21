@@ -22,6 +22,17 @@ export const PLANT_DATABASE: PlantSpecies[] = [
     idealWateringFrequencyDays: 14
   },
   {
+    id: "snake_plant",
+    name: "Snake Plant (Sansevieria)",
+    description: "Indestructible. Thrives on neglect. Tolerates low light and drought.",
+    thresholds: {
+      moisture: { low: 5, high: 35 }, // Extremely drought tolerant
+      temperature: { low: 13, high: 32 },
+      light: { low: 50, high: 900 } // Can survive closet to full sun
+    },
+    idealWateringFrequencyDays: 21
+  },
+  {
     id: "tropical",
     name: "Tropical (Monstera/Pothos)",
     description: "Prefers consistent moisture and indirect bright light.",
@@ -33,6 +44,28 @@ export const PLANT_DATABASE: PlantSpecies[] = [
     idealWateringFrequencyDays: 7
   },
   {
+    id: "fiddle_leaf",
+    name: "Fiddle Leaf Fig",
+    description: "The Diva. Needs bright filtered light, no drafts, and consistent schedule.",
+    thresholds: {
+      moisture: { low: 35, high: 70 }, // Dries out top inch only
+      temperature: { low: 18, high: 29 }, // Hates cold drafts
+      light: { low: 400, high: 900 } // Needs bright light
+    },
+    idealWateringFrequencyDays: 10
+  },
+  {
+    id: "calathea",
+    name: "Calathea / Prayer Plant",
+    description: "Drama queen. Demands high humidity and moist soil. Leaves move at night.",
+    thresholds: {
+      moisture: { low: 55, high: 90 }, // Panic if dry
+      temperature: { low: 18, high: 27 },
+      light: { low: 100, high: 450 } // Low light, burns easily
+    },
+    idealWateringFrequencyDays: 4
+  },
+  {
     id: "fern",
     name: "Fern / Moisture Lover",
     description: "Needs high humidity and moist soil. Keep out of direct sun.",
@@ -42,6 +75,17 @@ export const PLANT_DATABASE: PlantSpecies[] = [
       light: { low: 50, high: 400 } // Low light tolerance
     },
     idealWateringFrequencyDays: 3
+  },
+  {
+    id: "spider_plant",
+    name: "Spider Plant",
+    description: "Adaptable and easy. Shoots out babies (pups). Good for hanging baskets.",
+    thresholds: {
+      moisture: { low: 30, high: 75 },
+      temperature: { low: 13, high: 27 },
+      light: { low: 200, high: 600 }
+    },
+    idealWateringFrequencyDays: 7
   },
   {
     id: "herb",

@@ -43,7 +43,7 @@ export const generatePlantThought = async (data: SensorData, mood: PlantMood, ni
       contents: "What is your current thought?",
       config: {
         systemInstruction: systemInstruction,
-        temperature: 1.0, 
+        temperature: 0.7,
         maxOutputTokens: 100,
         safetySettings: [
           { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -72,7 +72,6 @@ export const generatePlantThought = async (data: SensorData, mood: PlantMood, ni
     }
 
     // For all other errors (quota, network, safety filter), use the fallback
-    // to maintain the immersion of the app.
     return getRandomFallback(mood);
   }
 };
