@@ -1,6 +1,6 @@
 
-import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from "@google/genai";
-import { SensorData, PlantMood } from "../types";
+import { GoogleGenAI, HarmCategory, HarmBlockThreshold, Modality } from "@google/genai";
+import { SensorData, PlantMood, PlantSpecies } from "../types";
 import { FALLBACK_THOUGHTS } from "../constants";
 
 const apiKey = process.env.API_KEY;
@@ -13,27 +13,62 @@ const getRandomFallback = (mood: PlantMood): string => {
   return options[Math.floor(Math.random() * options.length)];
 };
 
-export const generatePlantThought = async (data: SensorData, mood: PlantMood, nickname: string): Promise<string> => {
+// Helper to decode Base64
+function decode(base64: string) {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
+// Helper to decode raw PCM data to AudioBuffer
+async function decodeAudioData(
+  data: Uint8Array,
+  ctx: AudioContext,
+  sampleRate: number,
+  numChannels: number,
+): Promise<AudioBuffer> {
+  const dataInt16 = new Int16Array(data.buffer);
+  const frameCount = dataInt16.length / numChannels;
+  const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+
+  for (let channel = 0; channel < numChannels; channel++) {
+    const channelData = buffer.getChannelData(channel);
+    for (let i = 0; i < frameCount; i++) {
+      channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+    }
+  }
+  return buffer;
+}
+
+export const generatePlantThought = async (
+  data: SensorData, 
+  mood: PlantMood, 
+  nickname: string,
+  species?: PlantSpecies
+): Promise<string> => {
   if (!ai) {
-    // Simulate a brief delay so the UI feels responsive even without an API key
     await new Promise(resolve => setTimeout(resolve, 500));
-    return getRandomFallback(mood); // Return fallback if no key
+    return getRandomFallback(mood);
   }
 
-  const systemInstruction = `You are a potted houseplant named "${nickname}".
+  const speciesContext = species 
+    ? `You are a ${species.name}. Description: ${species.description}.` 
+    : `You are a generic houseplant.`;
+
+  const systemInstruction = `You are a potted plant named "${nickname}".
+  ${speciesContext}
   Your current state is: ${mood}.
   Sensor Data: Moisture ${data.moisture}%, Temp ${data.temperature}C, Light ${data.light}.
   
-  React to your conditions in 12 words or less.
+  React to your conditions in 15 words or less. 
+  Adopt a personality based on your species description (e.g., Cactus = stoic/prickly, Fern = dramatic/needy).
   
-  - Happy: Your conditions are perfect! Ignore yourself and write a mini positive sentence for the human looking at you. Compliment them, validate them, or tell them they are doing a good job.
-  - Thirsty: Beg for water dramatically.
-  - Drowning: Complain about wet feet/roots.
-  - Hot: Complain about heat/wilting.
-  - Freezing: Complain about cold/shivering.
-  - Dark: Ask for light/sun.
-  - Scorched: Complain about brightness/burn.
-  - Sleeping: You are asleep. Mumble something about dreams or being woken up gently.
+  - Happy: Compliment the human or vibe.
+  - Thirsty/Drowning/Hot/Freezing/Dark/Scorched: Complain based on your personality.
   
   Be funny, dramatic, or cute. No hashtags.`;
 
@@ -43,13 +78,11 @@ export const generatePlantThought = async (data: SensorData, mood: PlantMood, ni
       contents: "What is your current thought?",
       config: {
         systemInstruction: systemInstruction,
-        temperature: 0.7,
+        temperature: 0.8,
         maxOutputTokens: 100,
         safetySettings: [
           { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
           { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-          { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-          { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
         ],
       }
     });
@@ -57,21 +90,57 @@ export const generatePlantThought = async (data: SensorData, mood: PlantMood, ni
     const text = response.text?.trim();
     
     if (!text) {
-      console.warn("Gemini returned empty text, using fallback.");
       return getRandomFallback(mood);
     }
     return text;
 
   } catch (error: any) {
-    console.error("Gemini API Error:", error);
-
-    // specific error handling for API Key issues to help the user
+    console.error("Gemini Thought API Error:", error);
     const errorMessage = error.message || error.toString();
     if (errorMessage.includes("API_KEY") || errorMessage.includes("401")) {
       return "Invalid API Key.";
     }
-
-    // For all other errors (quota, network, safety filter), use the fallback
     return getRandomFallback(mood);
+  }
+};
+
+export const generatePlantVoice = async (text: string, voiceName: string = 'Kore'): Promise<AudioBuffer | null> => {
+  if (!ai) return null;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash-preview-tts",
+      contents: [{ parts: [{ text: text }] }],
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: voiceName }, 
+          },
+        },
+      },
+    });
+
+    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    
+    if (!base64Audio) {
+      console.warn("No audio data received from Gemini");
+      return null;
+    }
+
+    const outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+    
+    const audioBuffer = await decodeAudioData(
+      decode(base64Audio),
+      outputAudioContext,
+      24000,
+      1
+    );
+
+    return audioBuffer;
+
+  } catch (error) {
+    console.error("Gemini TTS API Error:", error);
+    return null;
   }
 };

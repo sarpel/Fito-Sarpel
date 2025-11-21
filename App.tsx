@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { generatePlantThought } from './services/geminiService';
+import { generatePlantThought, generatePlantVoice } from './services/geminiService';
 import { SensorData, PlantMood, PlantStage, WateringSchedule, SensorThresholds, WateringFrequency } from './types';
 import { DEFAULT_SENSOR_DATA, GROWTH_CONFIG, WATER_DROP_SOUND_URL } from './constants';
 import { config } from './plantConfig';
@@ -24,6 +24,7 @@ const App: React.FC = () => {
   const [nickname, setNickname] = useState<string>("Sprout");
   const [aiThought, setAiThought] = useState<string>("I'm just photosynthesizing...");
   const [isThinking, setIsThinking] = useState<boolean>(false);
+  const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   
   // Growth
   const [xp, setXp] = useState<number>(0);
@@ -47,6 +48,7 @@ const App: React.FC = () => {
 
   // Refs
   const lastAiUpdateRef = useRef<number>(0);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   // --- ROUTING LOGIC ---
   useEffect(() => {
@@ -136,7 +138,7 @@ const App: React.FC = () => {
     return () => clearInterval(checkInterval);
   }, [schedule, isWateringDue]);
 
-  // Watering Notification Sound
+  // Watering Notification Sound (Simple Beep/Drop)
   useEffect(() => {
     if (isWateringDue && !isMuted) {
       const audio = new Audio(WATER_DROP_SOUND_URL);
@@ -176,11 +178,41 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [mood]);
 
+  // Play Audio Buffer
+  const playAudioBuffer = async (buffer: AudioBuffer) => {
+    if (isMuted) return;
+    
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+    }
+
+    const ctx = audioContextRef.current;
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
+    }
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    const gainNode = ctx.createGain();
+    gainNode.gain.value = 1.0; // Volume
+    
+    source.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    
+    setIsSpeaking(true);
+    source.start(0);
+    
+    source.onended = () => {
+      setIsSpeaking(false);
+    };
+  };
+
   // AI Thought Logic
   useEffect(() => {
     const now = Date.now();
     const timeSinceLastUpdate = now - lastAiUpdateRef.current;
     
+    // Debounce thoughts or trigger on drastic mood change (optional logic could be added here)
     if (timeSinceLastUpdate > 30000 || lastAiUpdateRef.current === 0) {
       fetchAiThought();
     }
@@ -190,8 +222,20 @@ const App: React.FC = () => {
   const fetchAiThought = async () => {
     setIsThinking(true);
     try {
-      const thought = await generatePlantThought(sensorData, mood, nickname);
+      const currentSpecies = PLANT_DATABASE.find(p => p.id === currentSpeciesId);
+      const thought = await generatePlantThought(sensorData, mood, nickname, currentSpecies);
       setAiThought(thought);
+      
+      // If not muted and we have a valid thought, try to speak it
+      if (!isMuted && thought !== "...") {
+        // Non-blocking audio generation
+        generatePlantVoice(thought).then(audioBuffer => {
+          if (audioBuffer) {
+            playAudioBuffer(audioBuffer);
+          }
+        });
+      }
+      
       lastAiUpdateRef.current = Date.now();
     } catch (error) {
       console.error("Failed to get plant thoughts:", error);
@@ -201,13 +245,21 @@ const App: React.FC = () => {
     }
   };
 
+  const handleSpeakClick = async () => {
+    if (isSpeaking) return; // Prevent double click
+    setIsThinking(true); // Show visual feedback we are fetching audio
+    const audioBuffer = await generatePlantVoice(aiThought);
+    setIsThinking(false);
+    if (audioBuffer) {
+      playAudioBuffer(audioBuffer);
+    }
+  };
+
   // Handlers
   const handleForceGrow = () => {
     setXp(prevXp => {
       const newXp = prevXp + 20;
       const newStage = calculateStage(newXp);
-      // We need to update stage as well, but we can't do it inside setXp purely safely without this specific pattern
-      // Since setStage is async, we just fire it.
       setStage(newStage);
       return newXp;
     });
@@ -244,11 +296,13 @@ const App: React.FC = () => {
         thresholds={thresholds}
         aiThought={aiThought}
         isThinking={isThinking}
+        isSpeaking={isSpeaking}
         stage={stage}
         nickname={nickname}
         currentSpecies={PLANT_DATABASE.find(p => p.id === currentSpeciesId)}
         currentTime={currentTime}
         isWateringDue={isWateringDue}
+        onManualSpeak={handleSpeakClick}
     />
   );
 };
