@@ -1,15 +1,22 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { PlantAvatar } from './components/PlantAvatar';
 import { SensorCard } from './components/SensorCard';
 import { MoodGif } from './components/MoodGif';
 import { generatePlantThought } from './services/geminiService';
-import { SensorData, PlantMood, PlantStage } from './types';
-import { PLANT_THRESHOLDS, DEFAULT_SENSOR_DATA, CARE_TIPS, GROWTH_CONFIG } from './constants';
-import { Settings, Thermometer, Droplets, Sun, Cpu, Sprout, Edit2, Check, X, Sparkles } from 'lucide-react';
+import { SensorData, PlantMood, PlantStage, WateringSchedule, SensorThresholds, WateringFrequency } from './types';
+import { DEFAULT_SENSOR_DATA, CARE_TIPS, GROWTH_CONFIG } from './constants';
+import { config } from './plantConfig';
+import { PLANT_DATABASE } from './data/plantDatabase';
+import { Settings, Thermometer, Droplets, Sun, Cpu, Sprout, Edit2, Check, X, Sparkles, Calendar, Bell, Clock, AlertTriangle, Leaf } from 'lucide-react';
 
 const App: React.FC = () => {
   // State for sensor readings
   const [sensorData, setSensorData] = useState<SensorData>(DEFAULT_SENSOR_DATA);
+  
+  // State for Plant Configuration (Thresholds & Species)
+  const [currentSpeciesId, setCurrentSpeciesId] = useState<string>("custom");
+  const [thresholds, setThresholds] = useState<SensorThresholds>(config.thresholds);
   
   // State for determined mood, nickname, and AI thought
   const [mood, setMood] = useState<PlantMood>('happy');
@@ -23,36 +30,117 @@ const App: React.FC = () => {
   const [xp, setXp] = useState<number>(0);
   const [stage, setStage] = useState<PlantStage>(1);
 
+  // Schedule State
+  const [schedule, setSchedule] = useState<WateringSchedule>({ 
+    day: 'Monday', 
+    time: '09:00', 
+    frequencyDays: 7, 
+    enabled: false 
+  });
+  const [isWateringDue, setIsWateringDue] = useState<boolean>(false);
+
+  // System Time State
+  const [currentTime, setCurrentTime] = useState<string>(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+
   // UI States
   const [isSimulationMode, setIsSimulationMode] = useState<boolean>(true);
   const [showControls, setShowControls] = useState<boolean>(false);
   const [showCareTips, setShowCareTips] = useState<boolean>(false);
+  const [showSchedule, setShowSchedule] = useState<boolean>(false);
 
   // Ref to debounce AI calls
   const lastAiUpdateRef = useRef<number>(0);
+
+  const isDaytime = () => {
+    const hour = new Date().getHours();
+    return hour >= 7 && hour < 20; // 7 AM to 8 PM is considered "Day"
+  };
   
-  // Logic to determine mood based on thresholds
+  // Logic to determine mood based on DYNAMIC thresholds and schedule
   const determineMood = useCallback((data: SensorData): PlantMood => {
     const { moisture, temperature, light } = data;
-    const t = PLANT_THRESHOLDS;
+    const t = thresholds; // Use current dynamic thresholds
 
-    if (moisture < t.moisture.low) return 'thirsty';
+    // Critical survival thresholds take precedence over schedule
     if (moisture > t.moisture.high) return 'drowning';
-    
     if (temperature < t.temperature.low) return 'freezing';
     if (temperature > t.temperature.high) return 'hot';
-    
-    if (light < t.light.low) return 'dark';
     if (light > t.light.high) return 'scorched';
 
-    return 'happy';
-  }, []);
+    // Schedule Override: If watering is due, force thirsty unless we are drowning
+    if (isWateringDue) return 'thirsty';
 
-  // Update mood when sensor data changes
+    // Normal thresholds
+    if (moisture < t.moisture.low) return 'thirsty';
+    
+    // Light logic with Day/Night cycle
+    if (light < t.light.low) {
+      // If it's dark, check if it SHOULD be dark (Night time)
+      if (!isDaytime()) {
+        return 'sleeping'; // Normal for night
+      }
+      return 'dark'; // Scary for day
+    }
+
+    return 'happy';
+  }, [isWateringDue, thresholds]);
+
+  // Update mood when sensor data or thresholds change OR time changes
   useEffect(() => {
     const newMood = determineMood(sensorData);
     setMood(newMood);
-  }, [sensorData, determineMood]);
+  }, [sensorData, determineMood, currentTime]);
+
+  // Handle Species Selection
+  const handleSpeciesChange = (speciesId: string) => {
+    const selected = PLANT_DATABASE.find(p => p.id === speciesId);
+    if (selected) {
+      setCurrentSpeciesId(selected.id);
+      setThresholds(selected.thresholds);
+      // Also update nickname if it was still the default
+      if (nickname === "Sprout" && selected.id !== 'custom') {
+        setNickname(selected.name.split(' ')[0]);
+        setTempNickname(selected.name.split(' ')[0]);
+      }
+    }
+  };
+
+  // Clock Timer
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Schedule Checker Logic
+  useEffect(() => {
+    if (!schedule.enabled) return;
+
+    const checkInterval = setInterval(() => {
+      const now = new Date();
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const currentDay = days[now.getDay()];
+      const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+      // Simple trigger check (Ideally this would use a real timestamp difference calculation)
+      // Triggers if it matches the 'Day' anchor AND time.
+      // Note: For a robust system supporting "Every 3 days", we'd store "LastWateredDate"
+      if (currentDay === schedule.day && currentTimeStr === schedule.time && !isWateringDue) {
+        setIsWateringDue(true);
+      }
+    }, 10000); // Check every 10 seconds
+
+    return () => clearInterval(checkInterval);
+  }, [schedule, isWateringDue]);
+
+  // Auto-Dismiss Schedule Alert if Plant is Watered
+  useEffect(() => {
+    // If watering was due, but moisture is now significantly higher than low threshold
+    if (isWateringDue && sensorData.moisture > thresholds.moisture.low + 10) {
+      setIsWateringDue(false);
+    }
+  }, [sensorData.moisture, isWateringDue, thresholds]);
 
   // Growth Logic
   useEffect(() => {
@@ -61,12 +149,9 @@ const App: React.FC = () => {
       interval = setInterval(() => {
         setXp((prevXp) => {
           const newXp = prevXp + GROWTH_CONFIG.XP_PER_TICK;
-          
-          // Determine Stage based on XP
           if (newXp >= GROWTH_CONFIG.THRESHOLDS[4]) setStage(4);
           else if (newXp >= GROWTH_CONFIG.THRESHOLDS[3]) setStage(3);
           else if (newXp >= GROWTH_CONFIG.THRESHOLDS[2]) setStage(2);
-          
           return newXp;
         });
       }, GROWTH_CONFIG.TICK_RATE_MS);
@@ -77,17 +162,15 @@ const App: React.FC = () => {
   // AI Thought Generator Effect
   useEffect(() => {
     const now = Date.now();
-    // Only fetch new thought if mood changed OR it's been at least 30 seconds to avoid spamming API
     const timeSinceLastUpdate = now - lastAiUpdateRef.current;
     
     if (timeSinceLastUpdate > 30000 || lastAiUpdateRef.current === 0) {
       fetchAiThought();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mood, stage]); // Also trigger when stage changes
+  }, [mood, stage]);
 
   const fetchAiThought = async () => {
-    // If no API key and not in sim mode, might want to skip, but we have fallbacks now
     setIsThinking(true);
     try {
       const thought = await generatePlantThought(sensorData, mood, nickname);
@@ -106,41 +189,46 @@ const App: React.FC = () => {
     setSensorData(prev => ({ ...prev, [key]: value }));
   };
 
-  // Handle nickname edit start
+  // Nickname handlers
   const startEditing = () => {
     setTempNickname(nickname);
     setIsEditingName(true);
   };
 
-  // Handle nickname save
   const saveNickname = () => {
     if (tempNickname.trim()) {
       setNickname(tempNickname);
       setIsEditingName(false);
-      // Trigger a new thought with the new name shortly after
       setTimeout(() => fetchAiThought(), 500);
     }
   };
 
-  // Calculate progress to next level
-  const getNextLevelXp = () => {
-    if (stage === 4) return GROWTH_CONFIG.THRESHOLDS[4]; // Cap at max
-    return GROWTH_CONFIG.THRESHOLDS[(stage + 1) as PlantStage];
+  const getNextLevelXp = () => stage === 4 ? GROWTH_CONFIG.THRESHOLDS[4] : GROWTH_CONFIG.THRESHOLDS[(stage + 1) as PlantStage];
+  const getPrevLevelXp = () => stage === 1 ? 0 : GROWTH_CONFIG.THRESHOLDS[stage as PlantStage];
+  const progressPercent = Math.min(100, Math.max(0, ((xp - getPrevLevelXp()) / (getNextLevelXp() - getPrevLevelXp())) * 100));
+
+  // Smart Warning Logic
+  const getScheduleWarning = (): string | null => {
+    if (!schedule.enabled) return null;
+    
+    const species = PLANT_DATABASE.find(p => p.id === currentSpeciesId);
+    if (!species) return null;
+
+    // If user waters MORE frequently (smaller number) than recommended
+    // e.g., User (every 1 day) < Species (every 14 days)
+    if (schedule.frequencyDays < species.idealWateringFrequencyDays / 2) {
+       return `⚠️ Warning: This ${species.name} prefers watering every ${species.idealWateringFrequencyDays} days. Your schedule (every ${schedule.frequencyDays === 1 ? 'day' : schedule.frequencyDays + ' days'}) might drown it!`;
+    }
+    
+    return null;
   };
 
-  const getPrevLevelXp = () => {
-    if (stage === 1) return 0;
-    return GROWTH_CONFIG.THRESHOLDS[stage as PlantStage];
-  };
-
-  const progressPercent = Math.min(100, Math.max(0, 
-    ((xp - getPrevLevelXp()) / (getNextLevelXp() - getPrevLevelXp())) * 100
-  ));
+  const scheduleWarning = getScheduleWarning();
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-4 relative overflow-hidden font-sans">
       
-      {/* Background Ambient Glow based on Mood */}
+      {/* Background Ambient Glow */}
       <div className={`absolute inset-0 opacity-20 transition-colors duration-1000 pointer-events-none 
         ${mood === 'happy' ? 'bg-green-500' : ''}
         ${mood === 'thirsty' ? 'bg-yellow-600' : ''}
@@ -148,11 +236,17 @@ const App: React.FC = () => {
         ${mood === 'hot' || mood === 'scorched' ? 'bg-red-600' : ''}
         ${mood === 'freezing' ? 'bg-cyan-300' : ''}
         ${mood === 'dark' ? 'bg-gray-900' : ''}
+        ${mood === 'sleeping' ? 'bg-indigo-950' : ''}
       `} />
 
-      {/* Flickering Dark Mode Overlay */}
+      {/* Flickering Dark Mode Overlay (Only for 'dark' mood, not 'sleeping') */}
       {mood === 'dark' && (
          <div className="absolute inset-0 bg-black/40 animate-flicker pointer-events-none z-20 mix-blend-multiply"></div>
+      )}
+
+      {/* Sleeping Overlay */}
+      {mood === 'sleeping' && (
+         <div className="absolute inset-0 bg-indigo-950/60 pointer-events-none z-20 mix-blend-multiply"></div>
       )}
 
       {/* Main LCD Display Container */}
@@ -163,21 +257,36 @@ const App: React.FC = () => {
 
         {/* Header / Status Bar */}
         <div className="relative z-10 flex justify-between items-center p-4 border-b border-gray-800/50 bg-gray-900/40">
-          <div className="flex items-center gap-2 text-xs font-mono text-gray-400">
+          <div className="flex items-center gap-2 text-xs font-mono text-gray-400 w-24">
             <Cpu size={14} />
-            <span>RPi-Z-2W</span>
+            <span className="hidden sm:inline">RPi-Z-2W</span>
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
           </div>
-          <div className="flex items-center gap-3">
+
+          {/* Center System Time */}
+          <div className="flex-1 text-center">
+             <span className="font-mono-display text-2xl text-green-500 tracking-widest drop-shadow-lg opacity-90">
+               {currentTime}
+             </span>
+          </div>
+
+          <div className="flex items-center gap-3 w-24 justify-end">
+            <button 
+              onClick={() => { setShowSchedule(!showSchedule); setShowCareTips(false); setShowControls(false); }}
+              className={`transition-colors ${showSchedule ? 'text-purple-400' : 'text-gray-400 hover:text-purple-200'}`}
+              title="Watering Schedule"
+            >
+              {isWateringDue ? <Bell size={18} className="animate-bounce text-yellow-500" /> : <Calendar size={18} />}
+            </button>
              <button 
-              onClick={() => setShowCareTips(!showCareTips)}
+              onClick={() => { setShowCareTips(!showCareTips); setShowSchedule(false); setShowControls(false); }}
               className={`transition-colors ${showCareTips ? 'text-green-400' : 'text-gray-400 hover:text-green-200'}`}
               title="Care Tips"
             >
               <Sprout size={18} />
             </button>
             <button 
-              onClick={() => setShowControls(!showControls)}
+              onClick={() => { setShowControls(!showControls); setShowSchedule(false); setShowCareTips(false); }}
               className={`transition-colors ${showControls ? 'text-blue-400' : 'text-gray-400 hover:text-white'}`}
               title="Settings / Simulation"
             >
@@ -189,6 +298,13 @@ const App: React.FC = () => {
         {/* Main Content Area */}
         <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6">
           
+          {isWateringDue && (
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-yellow-500 text-black px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 animate-bounce shadow-lg">
+              <Bell size={12} />
+              Watering Time!
+            </div>
+          )}
+
           {/* Nickname Editor */}
           <div className="mb-2 flex items-center gap-2 z-50 flex-col">
             <div className="flex items-center gap-2">
@@ -215,13 +331,15 @@ const App: React.FC = () => {
               )}
             </div>
             
+            {/* Plant Type Badge */}
+            <div className="text-[10px] bg-gray-800/80 px-2 py-0.5 rounded-full text-gray-300 flex items-center gap-1 border border-gray-700">
+              <Leaf size={10} />
+              {PLANT_DATABASE.find(p => p.id === currentSpeciesId)?.name || "Custom Plant"}
+            </div>
+
             {/* Growth Progress Bar */}
-            <div className="w-32 flex flex-col gap-1 items-center" title={`XP: ${xp}`}>
-              <div className="flex justify-between w-full text-[10px] text-gray-300 uppercase font-bold tracking-wider">
-                 <span>Lvl {stage}</span>
-                 <span>{GROWTH_CONFIG.STAGE_NAMES[stage]}</span>
-              </div>
-              <div className="w-full h-1.5 bg-gray-700 rounded-full overflow-hidden border border-gray-600">
+            <div className="w-32 flex flex-col gap-1 items-center mt-1" title={`XP: ${xp}`}>
+              <div className="w-full h-1 bg-gray-700 rounded-full overflow-hidden border border-gray-600">
                  <div 
                     className="h-full bg-gradient-to-r from-green-500 to-emerald-400 transition-all duration-1000"
                     style={{ width: `${stage === 4 ? 100 : progressPercent}%` }}
@@ -255,23 +373,102 @@ const App: React.FC = () => {
             label="Moisture"
             value={sensorData.moisture}
             unit="%"
-            status={sensorData.moisture < 30 || sensorData.moisture > 85 ? 'danger' : 'good'}
+            status={sensorData.moisture < thresholds.moisture.low || sensorData.moisture > thresholds.moisture.high ? 'danger' : 'good'}
           />
           <SensorCard 
             icon={<Thermometer size={20} />}
             label="Temp"
             value={sensorData.temperature}
             unit="°C"
-            status={sensorData.temperature < 15 || sensorData.temperature > 30 ? 'danger' : 'good'}
+            status={sensorData.temperature < thresholds.temperature.low || sensorData.temperature > thresholds.temperature.high ? 'danger' : 'good'}
           />
           <SensorCard 
             icon={<Sun size={20} />}
             label="Light"
             value={sensorData.light}
             unit="lx"
-            status={sensorData.light < 100 || sensorData.light > 800 ? 'warning' : 'good'}
+            status={sensorData.light < thresholds.light.low || sensorData.light > thresholds.light.high ? 'warning' : 'good'}
           />
         </div>
+
+        {/* Collapsible Watering Schedule Section */}
+        {showSchedule && (
+          <div className="relative z-20 bg-purple-900/90 p-4 border-t border-purple-700 animate-in slide-in-from-bottom duration-300">
+             <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-purple-100 flex items-center gap-2">
+                <Calendar size={16} /> Watering Schedule
+              </h3>
+              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <span className="text-purple-200">Enable</span>
+                <input 
+                  type="checkbox" 
+                  checked={schedule.enabled}
+                  onChange={(e) => setSchedule(prev => ({ ...prev, enabled: e.target.checked }))}
+                  className="rounded bg-gray-700 border-gray-600 text-purple-500 focus:ring-purple-500"
+                />
+              </label>
+            </div>
+            
+            {/* Smart Warning Popup */}
+            {scheduleWarning && (
+               <div className="mb-3 bg-yellow-500/20 border border-yellow-500 text-yellow-200 p-2 rounded text-xs flex gap-2 items-start">
+                 <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+                 <p>{scheduleWarning}</p>
+               </div>
+            )}
+
+            <div className={`grid grid-cols-3 gap-2 transition-opacity ${!schedule.enabled ? 'opacity-50 pointer-events-none' : ''}`}>
+              <div>
+                <label className="block text-[10px] text-purple-300 mb-1">Start Day</label>
+                <select 
+                  value={schedule.day}
+                  onChange={(e) => setSchedule(prev => ({...prev, day: e.target.value}))}
+                  className="w-full bg-gray-800/50 border border-purple-500/30 rounded p-2 text-xs text-white focus:outline-none focus:border-purple-400"
+                >
+                  {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
+                    <option key={day} value={day}>{day.substring(0, 3)}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] text-purple-300 mb-1">Frequency</label>
+                <select 
+                  value={schedule.frequencyDays}
+                  onChange={(e) => setSchedule(prev => ({...prev, frequencyDays: Number(e.target.value) as WateringFrequency}))}
+                  className="w-full bg-gray-800/50 border border-purple-500/30 rounded p-2 text-xs text-white focus:outline-none focus:border-purple-400"
+                >
+                  <option value={1}>Daily</option>
+                  <option value={2}>Every 2 days</option>
+                  <option value={3}>Every 3 days</option>
+                  <option value={4}>Every 4 days</option>
+                  <option value={7}>Weekly</option>
+                  <option value={14}>Bi-weekly</option>
+                  <option value={30}>Monthly</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] text-purple-300 mb-1 flex items-center gap-1"><Clock size={10}/> Time</label>
+                 <input 
+                  type="time" 
+                  value={schedule.time}
+                  onChange={(e) => setSchedule(prev => ({...prev, time: e.target.value}))}
+                  className="w-full bg-gray-800/50 border border-purple-500/30 rounded p-2 text-xs text-white focus:outline-none focus:border-purple-400"
+                />
+              </div>
+            </div>
+            
+             {isWateringDue && (
+               <div className="mt-4 flex justify-center">
+                  <button 
+                    onClick={() => setIsWateringDue(false)}
+                    className="bg-purple-500 hover:bg-purple-400 text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-md transition-colors"
+                  >
+                    I Watered It!
+                  </button>
+               </div>
+             )}
+          </div>
+        )}
 
         {/* Collapsible Care Tips Section */}
         {showCareTips && (
@@ -282,18 +479,40 @@ const App: React.FC = () => {
             <p className="text-sm text-green-50 leading-relaxed">
               {CARE_TIPS[mood]}
             </p>
+            <p className="text-xs text-green-300 mt-2 border-t border-green-700/50 pt-2">
+               Configured for: {PLANT_DATABASE.find(p => p.id === currentSpeciesId)?.name}
+            </p>
           </div>
         )}
 
-        {/* Collapsible Simulation Controls */}
+        {/* Collapsible Settings & Plant Selector */}
         {showControls && (
           <div className="relative z-20 bg-gray-800/95 p-4 border-t border-gray-700 animate-in slide-in-from-bottom duration-300">
+            
+            {/* Plant Species Selector */}
+            <div className="mb-4 pb-4 border-b border-gray-700">
+               <h3 className="font-bold text-gray-300 flex items-center gap-2 mb-2">
+                 <Leaf size={16} className="text-green-500" /> Plant Setup
+               </h3>
+               <select 
+                  value={currentSpeciesId}
+                  onChange={(e) => handleSpeciesChange(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-sm text-white focus:border-green-500 outline-none"
+               >
+                 {PLANT_DATABASE.map(species => (
+                   <option key={species.id} value={species.id}>{species.name}</option>
+                 ))}
+               </select>
+               <p className="text-[10px] text-gray-400 mt-1 italic">
+                 {PLANT_DATABASE.find(p => p.id === currentSpeciesId)?.description}
+               </p>
+            </div>
+
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-gray-300 flex items-center gap-2">
                 <Settings size={16} /> Sensor Simulation
               </h3>
               <div className="flex gap-2">
-                {/* Manual Grow Button for Demo */}
                 <button 
                    onClick={() => { setXp(prev => prev + 20); }}
                    className="px-2 py-1 bg-purple-600 hover:bg-purple-500 rounded text-xs font-bold text-white flex items-center gap-1"
@@ -316,8 +535,10 @@ const App: React.FC = () => {
             <div className="space-y-4">
               <div>
                 <div className="flex justify-between text-xs mb-1 text-gray-400">
-                  <span>Moisture</span>
-                  <span>{sensorData.moisture}%</span>
+                  <span>Moisture ({sensorData.moisture}%)</span>
+                  <span className="text-[10px] text-gray-600">
+                    Target: {thresholds.moisture.low}-{thresholds.moisture.high}%
+                  </span>
                 </div>
                 <input 
                   type="range" 
@@ -331,8 +552,10 @@ const App: React.FC = () => {
               </div>
               <div>
                 <div className="flex justify-between text-xs mb-1 text-gray-400">
-                  <span>Temperature</span>
-                  <span>{sensorData.temperature}°C</span>
+                  <span>Temperature ({sensorData.temperature}°C)</span>
+                  <span className="text-[10px] text-gray-600">
+                    Target: {thresholds.temperature.low}-{thresholds.temperature.high}°C
+                  </span>
                 </div>
                 <input 
                   type="range" 
@@ -346,8 +569,10 @@ const App: React.FC = () => {
               </div>
               <div>
                 <div className="flex justify-between text-xs mb-1 text-gray-400">
-                  <span>Light</span>
-                  <span>{sensorData.light} lx</span>
+                  <span>Light ({sensorData.light} lx)</span>
+                  <span className="text-[10px] text-gray-600">
+                    Target: {thresholds.light.low}-{thresholds.light.high} lx
+                  </span>
                 </div>
                 <input 
                   type="range" 

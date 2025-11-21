@@ -1,3 +1,4 @@
+
 export const config = {
   thresholds: {
     moisture: { low: 30, high: 85 },
@@ -32,7 +33,8 @@ export const config = {
     hot: "https://media1.tenor.com/m/g30_o3u7e0oAAAAC/elmo-fire.gif",
     freezing: "https://media1.tenor.com/m/K2i7XqWn1-UAAAAC/frozen-shining.gif",
     dark: "https://media1.tenor.com/m/Jz63gSqaWcQAAAAC/spongebob-darkness.gif",
-    scorched: "https://media1.tenor.com/m/T0P4vO6tMvIAAAAC/spongebob-my-eyes.gif"
+    scorched: "https://media1.tenor.com/m/T0P4vO6tMvIAAAAC/spongebob-my-eyes.gif",
+    sleeping: "https://media1.tenor.com/m/CgGu7WJ6Y84AAAAC/spongebob-sleeping.gif"
   },
   careTips: {
     happy: "I'm thriving! Just keep checking my leaves for dust and rotate my pot every week for even growth.",
@@ -41,7 +43,8 @@ export const config = {
     hot: "It's getting steamy! Move me to a cooler spot with good air circulation, away from radiators or direct noon sun.",
     freezing: "Brrr! Move me away from drafty windows or air conditioners. I prefer temperatures above 15°C.",
     dark: "It's too gloomy here. Move me closer to a window or turn on a grow light so I can photosynthesize!",
-    scorched: "I'm burning! Move me out of direct sunlight or use a sheer curtain to filter the light."
+    scorched: "I'm burning! Move me out of direct sunlight or use a sheer curtain to filter the light.",
+    sleeping: "Shhh! I'm sleeping. Plants respire at night, converting the sugars I made today into energy."
   },
   fallbackThoughts: {
     happy: [
@@ -59,6 +62,7 @@ export const config = {
     hot: ["Is it hot in here?", "I'm wilting...", "Turn up the AC!", "Sweating sap here.", "I'm melting!"],
     freezing: ["Brrr...", "Where's my sweater?", "Frostbite incoming!", "I'm shivering!", "So cold..."],
     dark: ["Who turned out the lights?", "I need sun!", "It's too dark.", "Can't see my leaves.", "Hello darkness my old friend."],
-    scorched: ["My eyes! The goggles do nothing!", "Too bright!", "I'm burning!", "Sunblock needed!", "I'm turning into toast!"]
+    scorched: ["My eyes! The goggles do nothing!", "Too bright!", "I'm burning!", "Sunblock needed!", "I'm turning into toast!"],
+    sleeping: ["Zzz...", "Dreaming of electric sheep.", "Charging my batteries...", "Too early...", "5 more minutes..."]
   }
 };

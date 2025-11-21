@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { PlantMood, PlantStage } from '../types';
 
@@ -17,6 +18,7 @@ export const PlantAvatar: React.FC<PlantAvatarProps> = ({ mood, stage }) => {
       case 'thirsty': return 'from-amber-700 to-stone-800 shadow-stone-900/50'; 
       case 'scorched': return 'from-orange-500 to-orange-700 shadow-orange-900/50'; 
       case 'dark': return 'from-slate-700 to-slate-900 shadow-black/50';
+      case 'sleeping': return 'from-indigo-800 to-indigo-950 shadow-indigo-900/50';
       default: return 'from-amber-600 to-amber-800 shadow-amber-900/50'; // Classic terracotta
     }
   };
@@ -27,6 +29,7 @@ export const PlantAvatar: React.FC<PlantAvatarProps> = ({ mood, stage }) => {
     if (mood === 'freezing') return '#0e7490'; // frozen cyan
     if (mood === 'scorched') return '#10b981'; // bright emerald
     if (mood === 'dark') return '#14532d'; // dark green
+    if (mood === 'sleeping') return '#1e40af'; // dark blue-green for night
     return '#22c55e'; // healthy green
   };
 
@@ -45,15 +48,26 @@ export const PlantAvatar: React.FC<PlantAvatarProps> = ({ mood, stage }) => {
       {/* --- GROUND SHADOW --- */}
       <div className="absolute bottom-4 w-32 h-4 bg-black/40 rounded-[100%] blur-md transform scale-y-50 z-0"></div>
 
+      {/* --- SLEEPING Zzz ANIMATION --- */}
+      {mood === 'sleeping' && (
+         <div className="absolute top-0 right-8 flex flex-col items-end animate-bounce-slow opacity-70 z-50">
+            <span className="text-2xl font-bold text-white/80 font-mono">Z</span>
+            <span className="text-xl font-bold text-white/60 font-mono mr-2 -mt-1">z</span>
+            <span className="text-lg font-bold text-white/40 font-mono mr-4 -mt-1">z</span>
+         </div>
+      )}
+
       {/* --- PLANT STEM & LEAVES (Layered behind pot rim front, but atop pot back) --- */}
       <div className={`absolute z-10 flex flex-col items-center origin-bottom transition-all duration-1000 animate-breathe
          ${getStemDimensions()}
          ${mood === 'thirsty' ? 'rotate-6 scale-y-90 translate-y-4' : ''}
+         ${mood === 'sleeping' ? 'scale-y-95 rotate-1' : ''}
       `}>
          {/* Main Stem */}
          <div className={`rounded-full relative transition-all duration-1000 w-full h-full
             ${mood === 'thirsty' ? 'bg-amber-700' : 'bg-gradient-to-t from-green-800 to-green-500'}
             ${mood === 'freezing' ? 'from-cyan-900 to-cyan-600' : ''}
+            ${mood === 'sleeping' ? 'from-indigo-900 to-green-800' : ''}
          `}>
             
             {/* STAGE 3 & 4: Big Leaves */}
@@ -63,6 +77,7 @@ export const PlantAvatar: React.FC<PlantAvatarProps> = ({ mood, stage }) => {
                 <div className={`absolute bottom-10 -left-12 origin-bottom-right transition-all duration-1000
                     ${mood === 'thirsty' ? 'rotate-[50deg] translate-y-6 opacity-80' : 'animate-wave-left'}
                     ${mood === 'freezing' ? 'animate-shiver' : ''}
+                    ${mood === 'sleeping' ? 'rotate-[-5deg] scale-95' : ''}
                 `}>
                   <svg width="60" height="60" viewBox="0 0 100 100" className="drop-shadow-sm filter">
                       <path d="M100,100 C20,80 0,20 0,0 C40,10 90,50 100,100" 
@@ -76,6 +91,7 @@ export const PlantAvatar: React.FC<PlantAvatarProps> = ({ mood, stage }) => {
                 <div className={`absolute bottom-14 -right-12 origin-bottom-left transition-all duration-1000
                     ${mood === 'thirsty' ? 'rotate-[-50deg] translate-y-6 opacity-80' : 'animate-wave-right'}
                     ${mood === 'freezing' ? 'animate-shiver' : ''}
+                    ${mood === 'sleeping' ? 'rotate-[5deg] scale-95' : ''}
                 `}>
                     <svg width="60" height="60" viewBox="0 0 100 100" className="drop-shadow-sm transform -scale-x-100">
                       <path d="M100,100 C20,80 0,20 0,0 C40,10 90,50 100,100" 
@@ -90,12 +106,12 @@ export const PlantAvatar: React.FC<PlantAvatarProps> = ({ mood, stage }) => {
             {/* STAGE 2: Smaller Leaves */}
             {stage === 2 && (
                <>
-                 <div className="absolute bottom-6 -left-6 origin-bottom-right animate-wave-left scale-50">
+                 <div className={`absolute bottom-6 -left-6 origin-bottom-right scale-50 ${mood === 'sleeping' ? '' : 'animate-wave-left'}`}>
                     <svg width="60" height="60" viewBox="0 0 100 100">
                       <path d="M100,100 C20,80 0,20 0,0 C40,10 90,50 100,100" fill={getLeafColor()} />
                     </svg>
                  </div>
-                 <div className="absolute bottom-8 -right-6 origin-bottom-left animate-wave-right scale-50 transform -scale-x-100">
+                 <div className={`absolute bottom-8 -right-6 origin-bottom-left scale-50 transform -scale-x-100 ${mood === 'sleeping' ? '' : 'animate-wave-right'}`}>
                     <svg width="60" height="60" viewBox="0 0 100 100">
                       <path d="M100,100 C20,80 0,20 0,0 C40,10 90,50 100,100" fill={getLeafColor()} />
                     </svg>
@@ -114,15 +130,18 @@ export const PlantAvatar: React.FC<PlantAvatarProps> = ({ mood, stage }) => {
              {/* Top Sprout / Flower (Always on top of stem) */}
              <div className={`absolute -top-4 left-1/2 -translate-x-1/2 origin-bottom transition-all duration-1000
                  ${mood === 'thirsty' ? 'rotate-90 scale-0' : 'scale-100'}
+                 ${mood === 'sleeping' ? 'rotate-12 scale-90' : ''}
              `}>
                 {/* Stage 4: FLOWER */}
                 {stage === 4 ? (
-                  <div className="w-16 h-16 -mt-8 relative animate-pulse">
+                  <div className={`w-16 h-16 -mt-8 relative ${mood === 'sleeping' ? 'opacity-80 scale-90' : 'animate-pulse'}`}>
                      <svg viewBox="0 0 100 100" className="drop-shadow-md">
                        {/* Petals */}
                        <g transform="translate(50,50)">
                           {[0, 45, 90, 135, 180, 225, 270, 315].map(rot => (
-                             <ellipse key={rot} cx="0" cy="-25" rx="10" ry="25" fill="#f472b6" transform={`rotate(${rot})`} />
+                             <ellipse key={rot} cx="0" cy="-25" rx="10" ry="25" 
+                                fill={mood === 'sleeping' ? '#db2777' : '#f472b6'} 
+                                transform={`rotate(${rot})`} />
                           ))}
                           <circle cx="0" cy="0" r="15" fill="#fbbf24" />
                        </g>
@@ -234,6 +253,7 @@ export const PlantAvatar: React.FC<PlantAvatarProps> = ({ mood, stage }) => {
                           ${mood === 'hot' ? 'w-4 h-1 translate-y-1 rotate-12 rounded-none' : ''} /* > shape */
                           ${mood === 'freezing' ? 'w-3 h-3 bg-blue-100' : ''}
                           ${mood === 'dark' ? 'w-8 h-1 bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.6)]' : ''}
+                          ${mood === 'sleeping' ? 'w-4 h-0.5 bg-stone-900' : ''} /* Closed eye line */
                         `}></div>
                         
                         {/* Right Eye */}
@@ -245,6 +265,7 @@ export const PlantAvatar: React.FC<PlantAvatarProps> = ({ mood, stage }) => {
                           ${mood === 'hot' ? 'w-4 h-1 translate-y-1 -rotate-12 rounded-none' : ''} /* < shape */
                           ${mood === 'freezing' ? 'w-3 h-3 bg-blue-100' : ''}
                           ${mood === 'dark' ? 'w-8 h-1 bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.6)]' : ''}
+                          ${mood === 'sleeping' ? 'w-4 h-0.5 bg-stone-900' : ''} /* Closed eye line */
                         `}></div>
                       </>
                     )}
@@ -290,6 +311,11 @@ export const PlantAvatar: React.FC<PlantAvatarProps> = ({ mood, stage }) => {
                   {/* Dark Straight Line */}
                   {mood === 'dark' && (
                       <div className="w-4 h-1 bg-stone-300/50 rounded-full mt-2"></div>
+                  )}
+
+                  {/* Sleeping Circle Mouth */}
+                  {mood === 'sleeping' && (
+                      <div className="w-2 h-2 bg-stone-900 rounded-full mt-1 opacity-60"></div>
                   )}
 
                 </div>

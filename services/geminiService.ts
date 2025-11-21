@@ -1,4 +1,5 @@
-import { GoogleGenAI } from "@google/genai";
+
+import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { SensorData, PlantMood } from "../types";
 import { FALLBACK_THOUGHTS } from "../constants";
 
@@ -32,6 +33,7 @@ export const generatePlantThought = async (data: SensorData, mood: PlantMood, ni
   - Freezing: Complain about cold/shivering.
   - Dark: Ask for light/sun.
   - Scorched: Complain about brightness/burn.
+  - Sleeping: You are asleep. Mumble something about dreams or being woken up gently.
   
   Be funny, dramatic, or cute. No hashtags.`;
 
@@ -41,8 +43,14 @@ export const generatePlantThought = async (data: SensorData, mood: PlantMood, ni
       contents: "What is your current thought?",
       config: {
         systemInstruction: systemInstruction,
-        temperature: 1.1, // High creativity
-        maxOutputTokens: 60,
+        temperature: 1.0, 
+        maxOutputTokens: 100,
+        safetySettings: [
+          { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+        ],
       }
     });
 
